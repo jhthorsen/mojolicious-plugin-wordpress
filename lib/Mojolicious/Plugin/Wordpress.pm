@@ -152,8 +152,8 @@ L<https://github.com/jhthorsen/mojolicious-plugin-wordpress/issues>.
 =head2 get_post_p
 
   my $promise = $c->wp->get_post_p;
-  my $promise = $c->wp->get_post_p{$slug);
-  my $promise = $c->wp->get_post_p{\%query};
+  my $promise = $c->wp->get_post_p($slug);
+  my $promise = $c->wp->get_post_p(\%query);
 
 This helper will be available, dependent on what you set L</post_types> to. It
 will return a L<Mojo::Promise> that will get a C<$post> hash-ref or C<undef> in
@@ -164,8 +164,8 @@ changed it to.
 =head2 get_posts_p
 
   my $promise = $c->wp->get_posts_p;
-  my $promise = $c->wp->get_posts_p{\%query};
-  my $promise = $c->wp->get_posts_p{{all => 1, post_processor => sub { ... }}};
+  my $promise = $c->wp->get_posts_p(\%query);
+  my $promise = $c->wp->get_posts_p({all => 1, post_processor => sub { ... }});
 
 This helper will be available, dependent on what you set L</post_types> to. It
 will return a L<Mojo::Promise> that will get an array-ref of C<$post> hash refs
