@@ -20,6 +20,9 @@ Mojolicious::Plugin::Wordpress - Use Wordpress as a headless CMS
 [Mojolicious::Plugin::Wordpress](https://metacpan.org/pod/Mojolicious::Plugin::Wordpress) is a plugin for getting data using the
 Wordpress JSON API.
 
+This plugin is currently EXPERIMENTAL. Let me know if you have any feedback at
+[https://github.com/jhthorsen/mojolicious-plugin-wordpress/issues](https://github.com/jhthorsen/mojolicious-plugin-wordpress/issues).
+
 # HELPERS
 
 ## get\_post\_p
