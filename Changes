@@ -1,4 +1,13 @@
 Revision history for perl distribution Mojolicious-Plugin-Wordpress
 
+0.02 Not Released
+ - Fix "Not an ARRAY reference at Wordpress.pm line 92", when fetching posts
+   with ?page=$too_high.
+
 0.01 2019-03-20T22:48:14+0800
- - Started project
+ - Add support for post-processing responses from the API.
+ - Add wp.meta_from helper.
+ - Add wp.get_post_p helper.
+ - Add wp.get_posts_p helper.
+ - Add wp.get_page_p helper.
+ - Add wp.get_pages_p helper.

@@ -89,7 +89,7 @@ sub _helper_get_posts_p {
   $gather = sub {
     my $wp_res = shift->res;
 
-    for my $post (@{$wp_res->json || []}) {
+    for my $post (@{_arr($wp_res->json)}) {
       push @posts, $processor ? $c->$processor($post) : $post;
     }
 
