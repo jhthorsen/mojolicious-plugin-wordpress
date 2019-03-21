@@ -3,6 +3,8 @@ Revision history for perl distribution Mojolicious-Plugin-Wordpress
 0.02 Not Released
  - Fix "Not an ARRAY reference at Wordpress.pm line 92", when fetching posts
    with ?page=$too_high.
+ - Will not return empty keys from meta_from() helper.
+ - Add support for %%variables%% from YOAST SEO.
 
 0.01 2019-03-20T22:48:14+0800
  - Add support for post-processing responses from the API.

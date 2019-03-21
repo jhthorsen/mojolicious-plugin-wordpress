@@ -10,6 +10,7 @@ use constant DEBUG => $ENV{MOJO_WORDPRESS_DEBUG} || 0;
 our $VERSION = '0.01';
 
 has base_url       => 'http://localhost/wp-json';     # Will become a Mojo::URL object
+has meta_replacer  => undef;
 has post_processor => undef;
 has ua             => sub { Mojo::UserAgent->new };
 has yoast_meta_key => 'yoast_meta';
@@ -18,7 +19,11 @@ sub register {
   my ($self, $app, $config) = @_;
   my $prefix = $config->{prefix} || 'wp';
 
+  $self->{meta}   = $self->_default_meta($app, $config->{meta} || {});
+  $self->{prefix} = $prefix;
+
   $self->$_($config->{$_}) for grep { $config->{$_} } qw(base_url post_processor yoast_meta_key ua);
+  $self->meta_replacer($config->{meta_replacer} || sub { $self->_default_meta_replacer(@_) });
   $self->base_url(Mojo::URL->new($self->base_url)) unless ref $self->base_url;
 
   $app->helper("$prefix.meta_from" => sub { $self->_helper_meta_from(@_) });
@@ -32,6 +37,24 @@ sub register {
 }
 
 sub _arr { ref $_[0] eq 'ARRAY' ? $_[0] : [] }
+
+sub _default_meta {
+  my ($self, $app, $meta) = @_;
+
+  # "powered_by" is just a dummy value to illustrate that custom %%variables%%
+  # are also supported.
+  return {powered_by => 'Mojolicious', sep => '-', sitename => $app->moniker, %$meta};
+}
+
+sub _default_meta_replacer {
+  my ($self, $c, $str) = @_;
+  my ($meta, $prefix) = @$self{qw(meta prefix)};
+  my $stash = $c->stash;
+
+  # %%title%% %%primary_category%% %%sep%% %%sitename%% %%whatever%%"
+  $str =~ s!%%(\w+)%%!{$stash->{"${prefix}_${1}"} || $meta->{$1} || "%%$1%%"}!ge;
+  $str;
+}
 
 sub _description {
   my $dom  = Mojo::DOM->new(shift->{content}{rendered} || '');
@@ -57,6 +80,12 @@ sub _helper_meta_from {
   $meta{"opengraph_$_"}      ||= $meta{"twitter_$_"} || $meta{$_} for qw(description title);
   $meta{twitter_description} ||= $meta{opengraph_description};
   $meta{twitter_title} ||= $meta{opengraph_title} || $meta{title};
+
+  for my $key (keys %meta) {
+    my $prefixed = "$self->{prefix}_$key";
+    $meta{$prefixed} = $self->meta_replacer->($c, delete $meta{$key} // '');
+    delete $meta{$prefixed} unless length $meta{$prefixed};
+  }
 
   return \%meta;
 }
@@ -178,16 +207,16 @@ changed it to.
   my $meta = $c->wp->meta_from(\%post);
 
 This helper will extract meta information from the Wordpress post and return a
-C<%hash> with the following keys set:
+C<%hash> that looks something like this:
 
   {
-    canonical             => "",
-    title                 => "",
-    description           => "",
-    opengraph_title       => "",
-    opengraph_description => "",
-    twitter_title         => "",
-    twitter_description   => "",
+    wp_canonical             => "",
+    wp_title                 => "",
+    wp_description           => "",
+    wp_opengraph_title       => "",
+    wp_opengraph_description => "",
+    wp_twitter_title         => "",
+    wp_twitter_description   => "",
     ...
   }
 
@@ -205,6 +234,15 @@ and L<https://github.com/niels-garve/yoast-to-rest-api>.
   my $wp  = $wp->base_url("https://wordpress.example.com/wp-json");
 
 Holds the base URL to the Wordpress server API, including "/wp-json".
+
+=head2 meta_replacer
+
+  my $cb = $wp->meta_replacer;
+  my $wp = $wp->meta_replacer(sub { my ($c, $str) = @_ });
+
+A callback used to search and replace meta data when calling L</meta_from>.
+The default callback will search and replace all occurances of "%%some_key%%"
+with C<wp_$some_key> from L<Mojolicious::Controller/stash>.
 
 =head2 post_processor
 
