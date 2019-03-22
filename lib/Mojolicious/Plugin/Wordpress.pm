@@ -26,7 +26,8 @@ sub register {
   $self->meta_replacer($config->{meta_replacer} || sub { $self->_default_meta_replacer(@_) });
   $self->base_url(Mojo::URL->new($self->base_url)) unless ref $self->base_url;
 
-  $app->helper("$prefix.meta_from" => sub { $self->_helper_meta_from(@_) });
+  $app->helper("$prefix.meta_from"       => sub { $self->_helper_meta_from(@_) });
+  $app->helper("$prefix.rewrite_content" => sub { $self->_helper_rewrite_content(@_) });
 
   my $default_post_types = [qw(pages posts)];
   for my $type (@{$config->{post_types} || $default_post_types}) {
@@ -43,7 +44,8 @@ sub _add_wp_assets_route {
   my $base_url = Mojo::URL->new($config->{base_assets_url});
 
   $app->routes->get($config->{base_assets_route} || '/uploads/*proxy_path')->to(
-    cb => sub {
+    base_assets_url => $base_url,
+    cb              => sub {
       my $c   = shift;
       my $url = $base_url->clone;
 
@@ -59,7 +61,7 @@ sub _add_wp_assets_route {
         $c->render(data => $proxy_tx->res->body);
       });
     }
-  );
+  )->name("$self->{prefix}.assets");
 }
 
 sub _arr { ref $_[0] eq 'ARRAY' ? $_[0] : [] }
@@ -160,6 +162,28 @@ sub _helper_get_posts_p {
   return $self->_raw(get_p => "wp/v2/$type", \%query)->then($gather);
 }
 
+sub _helper_rewrite_content {
+  my ($self, $c) = @_;
+  my $content = Mojo::DOM->new($_[2] // '');
+
+  my $assets_route_name = "$self->{prefix}.assets";
+  my $assets_route      = $c->app->routes->lookup($assets_route_name);
+  if ($assets_route) {
+    my $base_url = $assets_route->to->{base_assets_url}->to_string;
+    $content->find(qq([src^="$base_url"], [srcset*="$base_url"]))->each(sub {
+      for my $k (qw(src srcset)) {
+        $_[0]->{$k} =~ s!\b$base_url/?(\S+)!{$c->url_for($assets_route_name, {proxy_path => $1})}!ge if $_[0]->{$k};
+      }
+    });
+  }
+
+  $content->find('img')->each(sub {
+    delete $_[0]->{$_} for qw(height width);
+  });
+
+  return $content;
+}
+
 sub _raw {
   my ($self, $method, $path, $query, @data) = @_;
   my $url = $self->base_url->clone;
@@ -169,7 +193,6 @@ sub _raw {
   push @{$url->path}, split '/', $path;
 
   warn "[Wordpress] $method $url\n" if DEBUG;
-
   return $self->ua->$method($url, @data);
 }
 
@@ -251,6 +274,28 @@ how the Wordpress server has been set up.
 
 Suggested Wordpress plugins: L<https://wordpress.org/plugins/wordpress-seo/>
 and L<https://github.com/niels-garve/yoast-to-rest-api>.
+
+=head2 rewrite_content
+
+  $dom = $c->wp->rewrite_content($post->{content}{rendered});
+
+This helper will rewrite a piece of HTML from Wordpress with the following
+rules:
+
+=over 2
+
+=item * Asset URL
+
+Will replace "src" and "srcset" on images with an URL to the local application,
+if L</base_assets_url> is set in config or a "wp.assets" route could be found.
+
+=item * Images
+
+All "height" and "width" attributes will be removed from "img" tags.
+
+=back
+
+Note that more rules might be added in the future.
 
 =head1 ATTRIBUTES
 
