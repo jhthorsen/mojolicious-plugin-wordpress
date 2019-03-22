@@ -9,10 +9,10 @@ use constant DEBUG => $ENV{MOJO_WORDPRESS_DEBUG} || 0;
 
 our $VERSION = '0.01';
 
-has base_url       => 'http://localhost/wp-json';     # Will become a Mojo::URL object
+has base_url       => 'http://localhost/wp-json';                       # Will become a Mojo::URL object
 has meta_replacer  => undef;
 has post_processor => undef;
-has ua             => sub { Mojo::UserAgent->new };
+has ua             => sub { Mojo::UserAgent->new->max_redirects(3) };
 has yoast_meta_key => 'yoast_meta';
 
 sub register {
@@ -34,6 +34,32 @@ sub register {
     $app->helper("$prefix.get_${singular}_p" => sub { $self->_helper_get_post_p($type => @_) });
     $app->helper("$prefix.get_${type}_p" => sub { $self->_helper_get_posts_p($type => @_) });
   }
+
+  $self->_add_wp_assets_route($app, $config) if $config->{base_assets_url};
+}
+
+sub _add_wp_assets_route {
+  my ($self, $app, $config) = @_;
+  my $base_url = Mojo::URL->new($config->{base_assets_url});
+
+  $app->routes->get($config->{base_assets_route} || '/uploads/*proxy_path')->to(
+    cb => sub {
+      my $c   = shift;
+      my $url = $base_url->clone;
+
+      push @{$url->path}, split '/', $c->stash('proxy_path');
+      $c->app->log->debug("[Wordpress] GET $url");
+
+      return $self->ua->get_p($url)->then(sub {
+        my $proxy_tx = shift;
+        my $proxy_h  = $proxy_tx->res->headers;
+        my $res_h    = $c->res->headers;
+
+        $res_h->$_($proxy_h->$_) for qw(content_length content_type expires);
+        $c->render(data => $proxy_tx->res->body);
+      });
+    }
+  );
 }
 
 sub _arr { ref $_[0] eq 'ARRAY' ? $_[0] : [] }
@@ -276,6 +302,21 @@ L<YOAST|https://wordpress.org/plugins/wordpress-seo/> meta information.
 Used to register this plugin. C<%config> can have:
 
 =over 2
+
+=item * base_assets_url
+
+If C<base_assets_url> is set, then a new route will be added to your C<$app>,
+that will proxy GET requests to your Wordpress backend. This can be useful,
+if you want to mask/hide Wordpress URLs and rather let everything go through
+your L<Mojolicious> application.
+
+Example value:
+
+  {base_assets_url => 'https://wordpress.com/wp-content/uploads'}
+
+The path added will either be defined by the C<base_assets_route> config
+variable or default to "/uploads/*proxy_path", and the route will be named
+"wp.assets".
 
 =item * base_url
 
