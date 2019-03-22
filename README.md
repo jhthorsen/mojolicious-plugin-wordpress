@@ -28,8 +28,8 @@ This plugin is currently EXPERIMENTAL. Let me know if you have any feedback at
 ## get\_post\_p
 
     my $promise = $c->wp->get_post_p;
-    my $promise = $c->wp->get_post_p{$slug);
-    my $promise = $c->wp->get_post_p{\%query};
+    my $promise = $c->wp->get_post_p($slug);
+    my $promise = $c->wp->get_post_p(\%query);
 
 This helper will be available, dependent on what you set ["post\_types"](#post_types) to. It
 will return a [Mojo::Promise](https://metacpan.org/pod/Mojo::Promise) that will get a `$post` hash-ref or `undef` in
@@ -40,8 +40,8 @@ changed it to.
 ## get\_posts\_p
 
     my $promise = $c->wp->get_posts_p;
-    my $promise = $c->wp->get_posts_p{\%query};
-    my $promise = $c->wp->get_posts_p{{all => 1, post_processor => sub { ... }}};
+    my $promise = $c->wp->get_posts_p(\%query);
+    my $promise = $c->wp->get_posts_p({all => 1, post_processor => sub { ... }});
 
 This helper will be available, dependent on what you set ["post\_types"](#post_types) to. It
 will return a [Mojo::Promise](https://metacpan.org/pod/Mojo::Promise) that will get an array-ref of `$post` hash refs
@@ -54,16 +54,16 @@ changed it to.
     my $meta = $c->wp->meta_from(\%post);
 
 This helper will extract meta information from the Wordpress post and return a
-`%hash` with the following keys set:
+`%hash` that looks something like this:
 
     {
-      canonical             => "",
-      title                 => "",
-      description           => "",
-      opengraph_title       => "",
-      opengraph_description => "",
-      twitter_title         => "",
-      twitter_description   => "",
+      wp_canonical             => "",
+      wp_title                 => "",
+      wp_description           => "",
+      wp_opengraph_title       => "",
+      wp_opengraph_description => "",
+      wp_twitter_title         => "",
+      wp_twitter_description   => "",
       ...
     }
 
@@ -73,6 +73,24 @@ how the Wordpress server has been set up.
 Suggested Wordpress plugins: [https://wordpress.org/plugins/wordpress-seo/](https://wordpress.org/plugins/wordpress-seo/)
 and [https://github.com/niels-garve/yoast-to-rest-api](https://github.com/niels-garve/yoast-to-rest-api).
 
+## rewrite\_content
+
+    $dom = $c->wp->rewrite_content($post->{content}{rendered});
+
+This helper will rewrite a piece of HTML from Wordpress with the following
+rules:
+
+- Asset URL
+
+    Will replace "src" and "srcset" on images with an URL to the local application,
+    if ["base\_assets\_url"](#base_assets_url) is set in config or a "wp.assets" route could be found.
+
+- Images
+
+    All "height" and "width" attributes will be removed from "img" tags.
+
+Note that more rules might be added in the future.
+
 # ATTRIBUTES
 
 ## base\_url
@@ -81,6 +99,15 @@ and [https://github.com/niels-garve/yoast-to-rest-api](https://github.com/niels-
     my $wp  = $wp->base_url("https://wordpress.example.com/wp-json");
 
 Holds the base URL to the Wordpress server API, including "/wp-json".
+
+## meta\_replacer
+
+    my $cb = $wp->meta_replacer;
+    my $wp = $wp->meta_replacer(sub { my ($c, $str) = @_ });
+
+A callback used to search and replace meta data when calling ["meta\_from"](#meta_from).
+The default callback will search and replace all occurances of "%%some\_key%%"
+with `wp_$some_key` from ["stash" in Mojolicious::Controller](https://metacpan.org/pod/Mojolicious::Controller#stash).
 
 ## post\_processor
 
@@ -112,6 +139,21 @@ The key in the post JSON response that holds
     $app->plugin(wordpress => \%config);
 
 Used to register this plugin. `%config` can have:
+
+- base\_assets\_url
+
+    If `base_assets_url` is set, then a new route will be added to your `$app`,
+    that will proxy GET requests to your Wordpress backend. This can be useful,
+    if you want to mask/hide Wordpress URLs and rather let everything go through
+    your [Mojolicious](https://metacpan.org/pod/Mojolicious) application.
+
+    Example value:
+
+        {base_assets_url => 'https://wordpress.com/wp-content/uploads'}
+
+    The path added will either be defined by the `base_assets_route` config
+    variable or default to "/uploads/\*proxy\_path", and the route will be named
+    "wp.assets".
 
 - base\_url
 
