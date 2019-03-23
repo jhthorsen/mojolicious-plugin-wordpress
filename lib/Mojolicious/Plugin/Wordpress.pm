@@ -13,7 +13,7 @@ has base_url       => 'http://localhost/wp-json';                       # Will b
 has meta_replacer  => undef;
 has post_processor => undef;
 has ua             => sub { Mojo::UserAgent->new->max_redirects(3) };
-has yoast_meta_key => 'yoast_meta';
+has yoast_meta_key => 'yoast';
 
 sub register {
   my ($self, $app, $config) = @_;
@@ -98,7 +98,8 @@ sub _helper_meta_from {
   for my $key (keys %{$post->{x_metadata} || {}}, keys %{$post->{$yoast_key} || {}}) {
     next unless my $val = $post->{x_metadata}{$key} || $post->{$yoast_key}{$key};
     my $meta_key = $key;
-    next unless $meta_key =~ s!^_?yoast_wpseo_!!;
+    next unless $meta_key =~ s!^_?yoast_wpseo_!! or $post->{$yoast_key}{$key};
+    $meta_key =~ s!-!_!g;
     $meta{$meta_key} ||= $val;
   }
 
@@ -261,6 +262,7 @@ C<%hash> that looks something like this:
   {
     wp_canonical             => "",
     wp_title                 => "",
+    wp_metadesc              => "",
     wp_description           => "",
     wp_opengraph_title       => "",
     wp_opengraph_description => "",
@@ -273,7 +275,7 @@ Note that some keys might be missing or some keys might be added, depending on
 how the Wordpress server has been set up.
 
 Suggested Wordpress plugins: L<https://wordpress.org/plugins/wordpress-seo/>
-and L<https://github.com/niels-garve/yoast-to-rest-api>.
+and L<https://github.com/jhthorsen/wp-api-yoast-meta>.
 
 =head2 rewrite_content
 
@@ -332,10 +334,13 @@ Holds a L<Mojo::UserAgent> object that is used to get data from Wordpress.
 =head2 yoast_meta_key
 
   my $str = $wp->yaost_meta_key;
-  my $wp  = $wp->yaost_meta_key("yoast_meta");
+  my $wp  = $wp->yaost_meta_key("yoast");
 
 The key in the post JSON response that holds
-L<YOAST|https://wordpress.org/plugins/wordpress-seo/> meta information.
+L<Yoast|https://wordpress.org/plugins/wordpress-seo/> meta information.
+
+This information is not enabled by default. To enable it through the API, you
+can add this plugin: L<https://github.com/jhthorsen/wp-api-yoast-meta>.
 
 =head1 METHODS
 
