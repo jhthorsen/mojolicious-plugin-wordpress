@@ -57,7 +57,10 @@ sub _add_wp_assets_route {
         my $proxy_h  = $proxy_tx->res->headers;
         my $res_h    = $c->res->headers;
 
-        $res_h->$_($proxy_h->$_) for qw(content_length content_type expires);
+        $res_h->$_($proxy_h->$_) for qw(content_length content_type);
+        $res_h->cache_control($proxy_h->cache_control || 'max-age=86400');
+        $res_h->etag($proxy_h->etag || Mojo::Util::md5_sum($proxy_tx->res->body));
+        $res_h->last_modified($proxy_h->last_modified) if $proxy_h->last_modified;
         $c->render(data => $proxy_tx->res->body);
       });
     }
