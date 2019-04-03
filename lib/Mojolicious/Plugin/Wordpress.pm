@@ -14,6 +14,7 @@ has meta_replacer  => undef;
 has post_processor => undef;
 has ua             => sub { Mojo::UserAgent->new->max_redirects(3) };
 has yoast_meta_key => 'yoast';
+has _tx            => undef;
 
 sub register {
   my ($self, $app, $config) = @_;
@@ -28,6 +29,7 @@ sub register {
 
   $app->helper("$prefix.meta_from"       => sub { $self->_helper_meta_from(@_) });
   $app->helper("$prefix.rewrite_content" => sub { $self->_helper_rewrite_content(@_) });
+  $app->helper("$prefix.tx"              => sub { $self->_tx });
 
   my $default_post_types = [qw(pages posts)];
   for my $type (@{$config->{post_types} || $default_post_types}) {
@@ -137,7 +139,7 @@ sub _helper_get_post_p {
 
   my $processor = $params->{post_processor} || $self->post_processor;
   return $self->_raw(get_p => "wp/v2/$type", \%query)->then(sub {
-    my $wp_res = shift->res;
+    my $wp_res = $self->_tx(shift)->_tx->res;
     my $post   = _arr($wp_res->json)->[0];
     return $post && $processor ? $c->$processor($post) : $post;
   });
@@ -154,7 +156,7 @@ sub _helper_get_posts_p {
   my $processor = $params->{post_processor} || $self->post_processor;
   my ($gather, @posts);
   $gather = sub {
-    my $wp_res = shift->res;
+    my $wp_res = $self->_tx(shift)->_tx->res;
 
     for my $post (@{_arr($wp_res->json)}) {
       push @posts, $processor ? $c->$processor($post) : $post;
@@ -313,6 +315,14 @@ All "height" and "width" attributes will be removed from "img" tags.
 =back
 
 Note that more rules might be added in the future.
+
+=head2 tx
+
+  my $tx = $c->wp->tx;
+
+Holds the last L<Mojo::Transaction::HTTP> object used to communicate with the
+Wordpress backend. Useful if you want to inspect headers or other HTTP
+information.
 
 =head1 ATTRIBUTES
 
