@@ -7,7 +7,7 @@ use Mojo::Util 'trim';
 
 use constant DEBUG => $ENV{MOJO_WORDPRESS_DEBUG} || 0;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 has base_url       => 'http://localhost/wp-json';                       # Will become a Mojo::URL object
 has meta_replacer  => undef;

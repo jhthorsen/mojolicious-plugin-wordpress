@@ -59,6 +59,7 @@ This helper will extract meta information from the Wordpress post and return a
     {
       wp_canonical             => "",
       wp_title                 => "",
+      wp_metadesc              => "",
       wp_description           => "",
       wp_opengraph_title       => "",
       wp_opengraph_description => "",
@@ -71,7 +72,7 @@ Note that some keys might be missing or some keys might be added, depending on
 how the Wordpress server has been set up.
 
 Suggested Wordpress plugins: [https://wordpress.org/plugins/wordpress-seo/](https://wordpress.org/plugins/wordpress-seo/)
-and [https://github.com/niels-garve/yoast-to-rest-api](https://github.com/niels-garve/yoast-to-rest-api).
+and [https://github.com/jhthorsen/wp-api-yoast-meta](https://github.com/jhthorsen/wp-api-yoast-meta).
 
 ## rewrite\_content
 
@@ -126,10 +127,13 @@ Holds a [Mojo::UserAgent](https://metacpan.org/pod/Mojo::UserAgent) object that 
 ## yoast\_meta\_key
 
     my $str = $wp->yaost_meta_key;
-    my $wp  = $wp->yaost_meta_key("yoast_meta");
+    my $wp  = $wp->yaost_meta_key("yoast");
 
 The key in the post JSON response that holds
-[YOAST](https://wordpress.org/plugins/wordpress-seo/) meta information.
+[Yoast](https://wordpress.org/plugins/wordpress-seo/) meta information.
+
+This information is not enabled by default. To enable it through the API, you
+can add this plugin: [https://github.com/jhthorsen/wp-api-yoast-meta](https://github.com/jhthorsen/wp-api-yoast-meta).
 
 # METHODS
 
