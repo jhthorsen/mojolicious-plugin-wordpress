@@ -1,6 +1,7 @@
 Revision history for perl distribution Mojolicious-Plugin-Wordpress
 
 0.03 Not Released
+ - Fix rewriting meta_for asset URLs
  - Changed logic for getting Yoast SEO data
  - Improved response headers for static files
 

@@ -113,6 +113,12 @@ sub _helper_meta_from {
   $meta{twitter_description} ||= $meta{opengraph_description};
   $meta{twitter_title} ||= $meta{opengraph_title} || $meta{title};
 
+  if (my ($base_url, $url_for) = $self->_rewrite_asset_url_info($c)) {
+    for my $k (keys %meta) {
+      $meta{$k} =~ s!\b$base_url/?(\S+)!{$url_for->($1)->to_abs}!ge;
+    }
+  }
+
   for my $key (keys %meta) {
     my $prefixed = "$self->{prefix}_$key";
     $meta{$prefixed} = $self->meta_replacer->($c, delete $meta{$key} // '');
@@ -170,13 +176,10 @@ sub _helper_rewrite_content {
   my ($self, $c) = @_;
   my $content = Mojo::DOM->new($_[2] // '');
 
-  my $assets_route_name = "$self->{prefix}.assets";
-  my $assets_route      = $c->app->routes->lookup($assets_route_name);
-  if ($assets_route) {
-    my $base_url = $assets_route->to->{base_assets_url}->to_string;
+  if (my ($base_url, $url_for) = $self->_rewrite_asset_url_info($c)) {
     $content->find(qq([src^="$base_url"], [srcset*="$base_url"]))->each(sub {
       for my $k (qw(src srcset)) {
-        $_[0]->{$k} =~ s!\b$base_url/?(\S+)!{$c->url_for($assets_route_name, {proxy_path => $1})}!ge if $_[0]->{$k};
+        $_[0]->{$k} =~ s!\b$base_url/?(\S+)!{$url_for->($1)}!ge if $_[0]->{$k};
       }
     });
   }
@@ -198,6 +201,15 @@ sub _raw {
 
   warn "[Wordpress] $method $url\n" if DEBUG;
   return $self->ua->$method($url, @data);
+}
+
+sub _rewrite_asset_url_info {
+  my ($self, $c) = @_;
+  my $assets_route_name = "$self->{prefix}.assets";
+  my $assets_route      = $c->app->routes->lookup($assets_route_name) or return;
+
+  return ($assets_route->to->{base_assets_url}->to_string,
+    sub { $c->url_for($assets_route_name, {proxy_path => $_[0]}) });
 }
 
 1;
